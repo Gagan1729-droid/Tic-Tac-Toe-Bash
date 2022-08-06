@@ -113,7 +113,7 @@ while true
 do
     while true ; do 
         echo -e "\nEnter the row and column respectively: "
-        read row col
+        read row col < /dev/tty
         if (( $row > board_size  ||  $row < 1 || $col > board_size || $col < 1))
         then
             echo Enter valid valid values between 1 and $board_size
