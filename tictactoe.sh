@@ -1,7 +1,7 @@
 #! /bin/bash
 
 declare -a board
-declare -i pieces
+declare -i pieces=0
 declare header="Bash TicTacToe v1.1 - Gagan Gupta"
 
 declare -i start_time=$(date +%s)
@@ -12,22 +12,93 @@ declare -i fields_total=8
 declare -i flag_invalid=0
 declare -i row
 declare -i col
+declare -i pVsc=0         # player vs computer variable
 declare p1="X"
 declare p2="O"
 
 exec 3>/dev/null     # no logging by default
 
-# Print the board
-function print_board {
-    x=$board_size
-    printf "\n"
-    printf "  %c  |  %c  |  %c  \n" ${board[0*$x+0]} ${board[0*$x+1]} ${board[0*$x+2]}
-    printf "_____|_____|_____\n"
-    printf "     |     |     \n"
-    printf "  %c  |  %c  |  %c  \n" ${board[1*$x+0]} ${board[1*$x+1]} ${board[1*$x+2]}
-    printf "_____|_____|_____\n"
-    printf "     |     |     \n"
-    printf "  %c  |  %c  |  %c  \n" ${board[2*$x+0]} ${board[2*$x+1]} ${board[2*$x+2]}
+# Get input from the user
+function getUserInput {
+    while true ; do 
+        echo -e "\n$1 turn: "
+        read row col < /dev/tty
+        if (( $row > board_size  ||  $row < 1 || $col > board_size || $col < 1))
+        then
+            echo Enter valid values between 1 and $board_size
+            continue
+        else
+            checkForValidity $row $col
+            if [ $flag_invalid -eq 1 ]
+            then 
+                flag_invalid=0
+                echo The inputted box is already filled. Try again!
+                continue
+            fi
+            break
+        fi
+    done
+}
+
+
+# Get input from computer
+function getCompInput {    
+    while true ; do
+        row=$((RANDOM % $board_size))
+        col=$((RANDOM % $board_size))
+        checkForValidity $row $col
+        if [ $flag_invalid -eq 1 ]
+        then 
+            flag_invalid=0
+            continue
+        fi
+        break
+    done
+    echo -e "\nMy Turn: $row $col\n"
+}
+
+
+# To play 2 - player game
+function p_vs_p {
+    init
+    print_board
+    echo -e "\n"Enter the row and column respectively 
+    while true
+    do
+        getUserInput "Player 1"
+        assign_value $row $col $p1
+        let pieces++
+        print_board
+        check_win $p1
+        getUserInput "Player 2"
+        assign_value $row $col $p2
+        print_board
+        let pieces++
+        check_win $p2
+    done
+}
+
+
+# To play single player game - with computer
+function p_vs_comp {
+    pVsc=1
+    init
+    echo -e "\n"So you have chosen to play with me :D "\n"
+    print_board
+    echo -e "\n"Enter the row and column respectively 
+    while true
+    do
+        getUserInput "Your"
+        assign_value $row $col $p1
+        let pieces++
+        print_board
+        check_win $p1
+        getCompInput
+        assign_value $row $col $p2
+        print_board
+        let pieces++
+        check_win $p2
+    done
 }
 
 
@@ -52,16 +123,17 @@ function assign_value {
 }
 
 
-# Print the win message
-function print_win {
-    echo -e "\n"
-    if [ "$1" == "$p1" ]
-    then
-        echo Congratulations! You won!!
-    else
-        echo You lose! Better luck next time!
-    fi
-    exit
+# Print the board
+function print_board {
+    x=$board_size
+    printf "\n"
+    printf "  %c  |  %c  |  %c  \n" ${board[0*$x+0]} ${board[0*$x+1]} ${board[0*$x+2]}
+    printf "_____|_____|_____\n"
+    printf "     |     |     \n"
+    printf "  %c  |  %c  |  %c  \n" ${board[1*$x+0]} ${board[1*$x+1]} ${board[1*$x+2]}
+    printf "_____|_____|_____\n"
+    printf "     |     |     \n"
+    printf "  %c  |  %c  |  %c  \n" ${board[2*$x+0]} ${board[2*$x+1]} ${board[2*$x+2]}
 }
 
  
@@ -97,54 +169,76 @@ function check_win {
     then
         print_win $1
     fi
+    if [ $pieces -eq $boxes_total ]
+    then
+        printf "\nGot stuck! No one wins\n"
+        exit
+    fi
 }
 
 
-# Init
-i=0
-while [ $i -le $fields_total ]
+# Print the win message
+function print_win {
+    echo -e "\n"
+    x=1
+    if [ $pVsc -eq 1 ]; then
+        if [ "$1" == "$p1" ]
+        then
+            echo Congratulations! You won!!
+        else
+            echo You lose! Better luck next time!
+        fi
+    else 
+        if [ "$1" == "$p1" ]
+        then
+            echo Player 1 won!!
+        else
+            echo Player 2 won!!
+        fi
+    fi
+    printf "\n"
+    exit
+}
+
+
+# Help commandline function
+function help {
+  cat <<END_HELP
+
+Usage: $1 [-s INTEGER] [-c] [-h]
+
+  -s		specify game board size (sizes 3-9 allowed)
+  -c		play with computer
+  -h		this help
+
+END_HELP
+}
+
+
+function init {
+    i=0
+    while [ $i -le $fields_total ]
+    do
+        board[$i]='.'
+        i=`expr $i + 1`
+    done
+}
+
+
+# Parse command-line options
+while getopts "s:ch" opt
 do
-    board[$i]='.'
-    i=`expr $i + 1`
+    case $opt in 
+    s ) printf "\nThe feature -s (specifying the board size) is under development.. Stay tuned!\n";;
+    c ) p_vs_comp
+        exit 0;;
+    h ) help $0
+        exit 0;;
+    \?) printf "Invalid option: -"$opt", try $0 -h\n" >&2
+            exit 1;;
+    : ) printf "Option -"$opt" requires an argument, try $0 -h\n" >&2
+            exit 1;;
+    esac
 done
 
-print_board
-while true
-do
-    while true ; do 
-        echo -e "\nEnter the row and column respectively: "
-        read row col < /dev/tty
-        if (( $row > board_size  ||  $row < 1 || $col > board_size || $col < 1))
-        then
-            echo Enter valid valid values between 1 and $board_size
-            continue
-        else
-            checkForValidity $row $col
-            if [ $flag_invalid -eq 1 ]
-            then 
-                flag_invalid=0
-                echo The inputted box is already filled. Try again!
-                continue
-            fi
-            break
-        fi
-    done
-    assign_value $row $col $p1
-    print_board
-    check_win $p1
-    echo -e "\n My Turn: \n"
-    while true ; do
-        row=$((RANDOM % $board_size))
-        col=$((RANDOM % $board_size))
-        checkForValidity $row $col
-        if [ $flag_invalid -eq 1 ]
-        then 
-            flag_invalid=0
-            continue
-        fi
-        break
-    done
-    assign_value $row $col $p2
-    print_board
-    check_win $p2
-done
+p_vs_p
