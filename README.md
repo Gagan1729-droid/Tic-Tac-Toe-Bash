@@ -8,8 +8,11 @@
 Via cURL:
 
 ```
-curl https://raw.githubusercontent.com/Gagan1729-droid/Tic-Tac-Toe-Bash/master/tictactoe.sh | bash
+curl -s https://raw.githubusercontent.com/Gagan1729-droid/Tic-Tac-Toe-Bash/master/tictactoe.sh | bash
 ```
+
+_To input the command line arguments use:_
+curl -s "...link..." | bash -s -- [Now here enter the command line arguments]
 
 Via Wget:
 
