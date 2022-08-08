@@ -8,7 +8,6 @@ declare -i start_time=$(date +%s)
 
 declare -i board_size=3
 declare -i boxes_total=9
-declare -i fields_total=8
 declare -i flag_invalid=0
 declare -i row
 declare -i col
@@ -125,50 +124,97 @@ function assign_value {
 
 # Print the board
 function print_board {
-    x=$board_size
+    x=`expr $board_size - 1`
+    for (( i=0; i<$x; i++ ))
+    do
+        printf "\n"
+        printf "  %c  " ${board[$i*$board_size]}
+        for (( j=1; j<$board_size; j++ ))
+        do
+            printf "|  %c  " ${board[$i*$board_size+$j]}
+        done
+        printf "\n_____"
+        for (( j=1; j<$board_size; j++ ))
+        do
+            printf "|_____"
+        done
+        printf "\n     "
+        for (( j=1; j<$board_size; j++ ))
+        do
+            printf "|     "
+        done
+    done
     printf "\n"
-    printf "  %c  |  %c  |  %c  \n" ${board[0*$x+0]} ${board[0*$x+1]} ${board[0*$x+2]}
-    printf "_____|_____|_____\n"
-    printf "     |     |     \n"
-    printf "  %c  |  %c  |  %c  \n" ${board[1*$x+0]} ${board[1*$x+1]} ${board[1*$x+2]}
-    printf "_____|_____|_____\n"
-    printf "     |     |     \n"
-    printf "  %c  |  %c  |  %c  \n" ${board[2*$x+0]} ${board[2*$x+1]} ${board[2*$x+2]}
+    printf "  %c  " ${board[$x*$board_size]}
+    for (( j=1; j<$board_size; j++ ))
+    do
+        printf "|  %c  " ${board[$x*$board_size+$j]}
+    done
+    printf "\n"
 }
 
  
 # Check if a player is winning
 function check_win {
-    for i in $(seq 0 2); do 
-        y=`expr $i \* $board_size`
-        z=`expr $y + 1`
-        w=`expr $z + 1`
-        if [ "${board[$y]}" == "$1" ] && [ "${board[$z]}" == "$1" ] && [ "${board[$w]}" == "$1" ]
+    x=`expr $board_size - 1`
+    for i in $(seq 0 $x); do 
+        y=`expr $i \* $board_size`    # Starting index of the row
+        z=`expr $y + $board_size`    # Terminating condition to stop while checking row-wise
+        
+        # Check row-wise winning
+        for (( j=$y; j<$z; j++ ))
+        do
+            if [ "${board[$j]}" != "$1" ]
+            then
+                break
+            fi
+        done
+        if [ $j -eq $z ]
+        then
+            print_win $1
+        fi
+
+        # Check column-wise winning
+        for (( j=$i; j<$boxes_total; j+=$board_size ))
+        do
+            if [ "${board[$j]}" != "$1" ]
+            then
+                break
+            fi
+        done
+        if [ $j -ge $boxes_total ]
         then
             print_win $1
         fi
     done
-    if [ "${board[0]}" == "$1" ] && [ "${board[3]}" == "$1" ] && [ "${board[6]}" == "$1" ]
-    then
-        print_win $1
-    fi
-    if [ "${board[1]}" == "$1" ] && [ "${board[4]}" == "$1" ] && [ "${board[7]}" == "$1" ]
-    then
-        print_win $1
-    fi
-    if [ "${board[2]}" == "$1" ] && [ "${board[5]}" == "$1" ] && [ "${board[8]}" == "$1" ]
+
+    # Check for diagonals
+    x=0                                 # Left diagonal
+    y=`expr $board_size - 1`            # Right diagonal
+    l=0                                 # Counter for left diagonal
+    r=0                                 # Counter for right diagonal
+    inc_l=`expr $board_size + 1`        # Increment for left diagonal
+    inc_r=`expr $board_size - 1`        # Increment for right diagonal
+
+    for (( i=0; i<$board_size; i++ ))
+    do
+        if [ "${board[$x]}" == "$1" ]
+        then
+            let l++
+        fi        
+        if [ "${board[$y]}" == "$1" ]
+        then
+            let r++
+        fi
+        let x+=$inc_l
+        let y+=$inc_r
+    done
+    if [ $l -eq $board_size ] || [ $r -eq $board_size ]
     then
         print_win $1
     fi
 
-    if [ "${board[0]}" == "$1" ] && [ "${board[4]}" == "$1" ] && [ "${board[8]}" == "$1" ]
-    then
-        print_win $1
-    fi
-    if [ "${board[2]}" == "$1" ] && [ "${board[4]}" == "$1" ] && [ "${board[6]}" == "$1" ]
-    then
-        print_win $1
-    fi
+    # When all the boxes are filled
     if [ $pieces -eq $boxes_total ]
     then
         printf "\nGot stuck! No one wins\n"
@@ -207,7 +253,7 @@ function help {
 
 Usage: $1 [-s INTEGER] [-c] [-h]
 
-  -s		specify game board size (sizes 3-9 allowed)
+  -s		specify game board size (sizes 3-9 allowed - Default:3)
   -c		play with computer
   -h		this help
 
@@ -217,7 +263,7 @@ END_HELP
 
 function init {
     i=0
-    while [ $i -le $fields_total ]
+    while [ $i -lt $boxes_total ]
     do
         board[$i]='.'
         i=`expr $i + 1`
@@ -226,10 +272,18 @@ function init {
 
 
 # Parse command-line options
-while getopts "s:ch" opt
+while getopts "hs:c" opt
 do
     case $opt in 
-    s ) printf "\nThe feature -s (specifying the board size) is under development.. Stay tuned!\n";;
+    s ) arg=$OPTARG
+        clear
+        if [ $arg -ge 3 ] && [ $arg -le 9 ]
+        then
+            board_size=$arg
+            boxes_total=`expr $arg \* $arg`
+        else
+            echo -e Board size can be [3,9] only... choosing default value "\n" 
+        fi;;
     c ) p_vs_comp
         exit 0;;
     h ) help $0
