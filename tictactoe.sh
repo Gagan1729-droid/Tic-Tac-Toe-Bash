@@ -2,7 +2,7 @@
 
 declare -a board
 declare -i pieces=0
-declare header="Bash TicTacToe v1.1 - Gagan Gupta"
+declare header="Bash TicTacToe v1.3 - Gagan Gupta"
 
 declare -i start_time=$(date +%s)
 
@@ -11,9 +11,16 @@ declare -i boxes_total=9
 declare -i flag_invalid=0
 declare -i row
 declare -i col
-declare -i pVsc=0         # player vs computer variable
+declare -i pVsc=0         # player vs computer flag
 declare p1="X"
 declare p2="O"
+declare color_X='\033[0;31m'         # red color for player 1
+declare color_O='\033[0;34m'         # blue color for player 2
+declare color_NC='\033[0m'
+
+declare col=$(($(tput cols) / 2))           # mid column in the current terminal
+declare lin=4
+declare start_col
 
 exec 3>/dev/null     # no logging by default
 
@@ -22,9 +29,11 @@ function getUserInput {
     while true ; do 
         echo -e "\n$1 turn: "
         read row col < /dev/tty
+        let lin+=3
         if (( $row > board_size  ||  $row < 1 || $col > board_size || $col < 1))
         then
             echo Enter valid values between 1 and $board_size
+            let lin++
             continue
         else
             checkForValidity $row $col
@@ -32,11 +41,13 @@ function getUserInput {
             then 
                 flag_invalid=0
                 echo The inputted box is already filled. Try again!
+                let lin++
                 continue
             fi
             break
         fi
     done
+    let lin++
 }
 
 
@@ -54,6 +65,7 @@ function getCompInput {
         break
     done
     echo -e "\nMy Turn: $row $col\n"
+    let lin+=2
 }
 
 
@@ -62,6 +74,7 @@ function p_vs_p {
     init
     print_board
     echo -e "\n"Enter the row and column respectively 
+    let lin+=2
     while true
     do
         getUserInput "Player 1"
@@ -82,7 +95,10 @@ function p_vs_p {
 function p_vs_comp {
     pVsc=1
     init
-    echo -e "\n"So you have chosen to play with me :D "\n"
+    tmp=$(($col-18))
+    tput cup 3 $tmp
+    echo -e So you have chosen to play with me :D "\n"
+    lin=6
     print_board
     echo -e "\n"Enter the row and column respectively 
     while true
@@ -128,29 +144,39 @@ function print_board {
     for (( i=0; i<$x; i++ ))
     do
         printf "\n"
+        tput cup $lin $start_col
         printf "  %c  " ${board[$i*$board_size]}
         for (( j=1; j<$board_size; j++ ))
         do
             printf "|  %c  " ${board[$i*$board_size+$j]}
         done
-        printf "\n_____"
+        printf "\n"
+        let lin++
+        tput cup $lin $start_col
+        printf "_____"
         for (( j=1; j<$board_size; j++ ))
         do
             printf "|_____"
         done
-        printf "\n     "
+        printf "\n"
+        let lin++
+        tput cup $lin $start_col
+        printf "     "
         for (( j=1; j<$board_size; j++ ))
         do
             printf "|     "
         done
+        let lin++
     done
     printf "\n"
+    tput cup $lin $start_col
     printf "  %c  " ${board[$x*$board_size]}
     for (( j=1; j<$board_size; j++ ))
     do
         printf "|  %c  " ${board[$x*$board_size+$j]}
     done
     printf "\n"
+    let lin++
 }
 
  
@@ -218,6 +244,15 @@ function check_win {
     if [ $pieces -eq $boxes_total ]
     then
         printf "\nGot stuck! No one wins\n"
+        end_time=$(date +%s) 
+        let total_time=end_time-start_time
+        printf "This game lasted "
+        `date --version > /dev/null 2>&1`
+        if [[ "$?" -eq 0 ]]; then
+            date -u -d @${total_time} +%T
+        else
+            date -u -r ${total_time} +%T
+        fi
         exit
     fi
 }
@@ -225,7 +260,17 @@ function check_win {
 
 # Print the win message
 function print_win {
+    end_time=$(date +%s) 
+    let total_time=end_time-start_time
     echo -e "\n"
+    printf "This game lasted "
+    `date --version > /dev/null 2>&1`
+    if [[ "$?" -eq 0 ]]; then
+        date -u -d @${total_time} +%T
+    else
+        date -u -r ${total_time} +%T
+    fi
+    printf "\n"
     x=1
     if [ $pVsc -eq 1 ]; then
         if [ "$1" == "$p1" ]
@@ -263,11 +308,19 @@ END_HELP
 
 function init {
     i=0
+    start_col=$(($col-$board_size*3+1))
     while [ $i -lt $boxes_total ]
     do
         board[$i]='.'
         i=`expr $i + 1`
     done
+    clear
+    tmp=$(($col-16))
+    RED='\033[0;34m'
+    NC='\033[0m'        # No Color
+    BOLD='\033[1m'
+    tput cup 1 $tmp
+    printf "${BOLD}${RED}$header${NC}\n"
 }
 
 
@@ -295,4 +348,5 @@ do
     esac
 done
 
+# If no choice provided ,  default is player vs player
 p_vs_p
